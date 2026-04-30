@@ -30,17 +30,31 @@ body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg
 .pad{padding:0 16px}
 .price-card{background:var(--surface);border:.5px solid var(--border);border-radius:20px;padding:18px 20px;margin-bottom:12px}
 .price-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
-.price-value{font-size:44px;font-weight:700;letter-spacing:-2px;font-variant-numeric:tabular-nums;color:var(--gold-light);line-height:1;margin-bottom:8px}
+.price-value{font-size:44px;font-weight:700;letter-spacing:-2px;font-variant-numeric:tabular-nums;color:var(--gold-light);line-height:1;margin-bottom:8px;transition:color .3s}
+.price-value.flash-up{color:#7DC055}
+.price-value.flash-down{color:#E06060}
 .price-change{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .ct{padding:3px 10px;border-radius:99px;font-weight:600;font-size:12px}
 .cu{background:var(--up-bg);color:var(--up)}.cd{background:var(--down-bg);color:var(--down)}.cn{background:var(--surface2);color:var(--muted)}
 .price-meta{font-size:11px;color:var(--muted);margin-top:8px}
+.countdown{font-size:10px;color:var(--muted);margin-top:4px}
 .sg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
 .sc{background:var(--surface);border:.5px solid var(--border);border-radius:14px;padding:12px}
 .sl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px}
 .sv{font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--gold-light)}
 .rb{width:100%;padding:11px;background:var(--surface);border:.5px solid var(--border);border-radius:14px;color:var(--muted);font-size:13px;cursor:pointer;-webkit-tap-highlight-color:transparent;margin-bottom:14px}
 .rb:active{background:var(--surface2)}
+.move-card{background:var(--surface);border:.5px solid var(--border);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.move-info{flex:1}
+.move-title{font-size:13px;font-weight:500;margin-bottom:2px}
+.move-sub{font-size:11px;color:var(--muted)}
+.move-badge{font-size:11px;background:rgba(201,168,76,.15);border:.5px solid var(--gold-dim);border-radius:8px;padding:4px 10px;color:var(--gold-light);font-weight:600;white-space:nowrap}
+.sw{position:relative;display:inline-block;width:44px;height:26px;flex-shrink:0}
+.sw input{opacity:0;width:0;height:0}
+.sr{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#3a3a36;border-radius:26px;transition:background .2s}
+.sr::before{content:'';position:absolute;width:22px;height:22px;border-radius:50%;background:white;top:2px;left:2px;transition:transform .2s;box-shadow:0 1px 4px rgba(0,0,0,.4)}
+input:checked+.sr{background:var(--up)}
+input:checked+.sr::before{transform:translateX(18px)}
 .notif-card{background:linear-gradient(135deg,rgba(201,168,76,.15),rgba(139,111,46,.1));border:.5px solid var(--gold-dim);border-radius:16px;padding:14px;margin-bottom:14px;text-align:center}
 .notif-card.done{background:var(--up-bg);border-color:rgba(90,154,58,.3)}
 .notif-title{font-size:13px;font-weight:600;color:var(--gold-light);margin-bottom:3px}
@@ -60,15 +74,6 @@ input[type=number],select{flex:1;background:var(--surface2);border:.5px solid rg
 option{background:#1C1C1A}
 .ab{background:var(--gold);color:#1a1a18;border:none;border-radius:10px;padding:9px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap}
 .ab:active{opacity:.8}
-.tc{background:var(--surface);border:.5px solid var(--border);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:10px;margin-bottom:14px}
-.tn{font-size:13px;font-weight:500;margin-bottom:2px}
-.ts2{font-size:11px;color:var(--muted)}
-.sw{position:relative;display:inline-block;width:44px;height:26px;flex-shrink:0}
-.sw input{opacity:0;width:0;height:0}
-.sr{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#3a3a36;border-radius:26px;transition:background .2s}
-.sr::before{content:'';position:absolute;width:22px;height:22px;border-radius:50%;background:white;top:2px;left:2px;transition:transform .2s;box-shadow:0 1px 4px rgba(0,0,0,.4)}
-input:checked+.sr{background:var(--up)}
-input:checked+.sr::before{transform:translateX(18px)}
 .al{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
 .ai{display:flex;align-items:center;gap:8px;background:var(--surface);border:.5px solid var(--border);border-radius:12px;padding:10px 12px;font-size:13px}
 .bx{font-size:10px;padding:2px 7px;border-radius:99px;font-weight:600;text-transform:uppercase;white-space:nowrap}
@@ -100,6 +105,7 @@ input:checked+.sr::before{transform:translateX(18px)}
     <div class="price-value" id="pv">&mdash;</div>
     <div class="price-change" id="pr"><span class="ct cn">Fetching live price&hellip;</span></div>
     <div class="price-meta" id="pm">Connecting to live feed&hellip;</div>
+    <div class="countdown" id="cd"></div>
   </div>
   <div class="sg">
     <div class="sc"><div class="sl">Open</div><div class="sv" id="so">&mdash;</div></div>
@@ -107,15 +113,28 @@ input:checked+.sr::before{transform:translateX(18px)}
     <div class="sc"><div class="sl">Low</div><div class="sv" id="slo">&mdash;</div></div>
   </div>
   <button class="rb" id="rb" onclick="fetchPrice()">&#8635; Refresh Now</button>
+
   <div id="installCard" class="install-card">
     <b>&#128242; Open from Home Screen for notifications</b><br>
     In Safari: Share &#x2191; &rarr; "Add to Home Screen" &rarr; open from that icon
   </div>
   <div class="notif-card" id="nc">
     <div class="notif-title" id="nt">&#128276; Enable Price Alerts</div>
-    <div class="notif-sub" id="ns">Tap to get push notifications when gold hits your target or moves $50</div>
+    <div class="notif-sub" id="ns">Tap to get push notifications when gold hits your target or moves $25</div>
     <button class="notif-btn" id="nb2" onclick="askNotif()">Enable Notifications</button>
   </div>
+
+  <!-- $25 movement toggle -->
+  <div class="move-card">
+    <div style="font-size:20px">&#9889;</div>
+    <div class="move-info">
+      <div class="move-title">Auto movement alerts</div>
+      <div class="move-sub" id="moveSub">Alert every $25 move from last alert point</div>
+    </div>
+    <span class="move-badge">$25</span>
+    <label class="sw"><input type="checkbox" id="aa" checked><span class="sr"></span></label>
+  </div>
+
   <div class="st">Set a price alert</div>
   <div class="fc">
     <div class="fr"><span class="fl">Target $</span><input type="number" id="ap" placeholder="e.g. 4600" step="1" min="0" inputmode="decimal"></div>
@@ -129,14 +148,7 @@ input:checked+.sr::before{transform:translateX(18px)}
       <button class="ab" onclick="addAlert()">+ Add</button>
     </div>
   </div>
-  <div class="tc">
-    <div style="font-size:20px">&#9889;</div>
-    <div style="flex:1">
-      <div class="tn">Auto $50 movement alerts</div>
-      <div class="ts2">Notify every $50 move automatically</div>
-    </div>
-    <label class="sw"><input type="checkbox" id="aa" checked><span class="sr"></span></label>
-  </div>
+
   <div class="st">Active alerts</div>
   <div class="al" id="al"><div class="em">No alerts set yet</div></div>
   <div class="st">Price history</div>
@@ -144,44 +156,89 @@ input:checked+.sr::before{transform:translateX(18px)}
 </div>
 <script>
 if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+
 const WORKER='https://bitter-surf-64e7.ajesh-mahto.workers.dev';
-const S={price:null,open:null,high:null,low:null,alerts:la(),history:[],lap:null,loading:false};
+const INTERVAL=15;
+const MOVE_THRESHOLD=25;
+
+const S={
+  price: null,
+  open: null, high: null, low: null,
+  alerts: la(),
+  history: [],
+  // lap = last alert price — resets every time movement alert fires
+  lap: null,
+  loading: false
+};
 const isStandalone=window.matchMedia('(display-mode: standalone)').matches||navigator.standalone;
+let countdown=INTERVAL;
+
 function la(){try{return JSON.parse(localStorage.getItem('gal')||'[]')}catch(e){return[]}}
 function sa(){try{localStorage.setItem('gal',JSON.stringify(S.alerts))}catch(e){}}
 function fmt(n){return n==null?'--':'$'+Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
+
 async function fetchPrice(){
-  if(S.loading)return;S.loading=true;
+  if(S.loading)return;
+  S.loading=true;
+  countdown=INTERVAL;
   const btn=document.getElementById('rb');
-  btn.innerHTML='<span class="spin">&#8635;</span> Fetching&hellip;';btn.disabled=true;
+  btn.innerHTML='<span class="spin">&#8635;</span> Fetching&hellip;';
+  btn.disabled=true;
   try{
     const r=await fetch(WORKER,{cache:'no-store'});
     if(!r.ok)throw new Error('HTTP '+r.status);
     const d=await r.json();
-    if(!d.price)throw new Error('No price');
-    updatePrice({price:+d.price,open:d.open_price?+d.open_price:null,high:d.high_price?+d.high_price:null,low:d.low_price?+d.low_price:null,ch:d.ch!=null?+d.ch:null,chp:d.chp!=null?+d.chp:null});
+    if(!d.price)throw new Error('No price in response');
+    updatePrice({
+      price: +d.price,
+      open:  d.open_price  ? +d.open_price  : null,
+      high:  d.high_price  ? +d.high_price  : null,
+      low:   d.low_price   ? +d.low_price   : null,
+      ch:    d.ch  != null ? +d.ch          : null,
+      chp:   d.chp != null ? +d.chp         : null,
+    });
     document.getElementById('dot').className='ld';
     document.getElementById('lbl').textContent='Live';
   }catch(err){
+    console.error(err);
     document.getElementById('dot').className='ld err';
     document.getElementById('lbl').textContent='Error';
-    document.getElementById('pm').textContent='Could not fetch: '+err.message+'. Retrying in 60s…';
-    sn('Price fetch failed. Retrying in 60s.','e');
+    document.getElementById('pm').textContent='Fetch failed: '+err.message+'. Retrying in '+INTERVAL+'s…';
+    sn('Price fetch failed. Retrying in '+INTERVAL+'s.','e');
   }
-  btn.innerHTML='&#8635; Refresh Now';btn.disabled=false;S.loading=false;
+  btn.innerHTML='&#8635; Refresh Now';
+  btn.disabled=false;
+  S.loading=false;
 }
+
 function updatePrice(d){
-  const price=d.price,prev=S.price;S.price=price;
-  if(d.open!=null)S.open=d.open;else if(S.open==null)S.open=price;
-  if(d.high!=null)S.high=d.high;else if(S.high==null||price>S.high)S.high=price;
-  if(d.low!=null)S.low=d.low;else if(S.low==null||price<S.low)S.low=price;
-  if(S.lap==null)S.lap=price;
+  const price=d.price, prev=S.price;
+  S.price=price;
+
+  if(d.open!=null) S.open=d.open; else if(S.open==null) S.open=price;
+  if(d.high!=null) S.high=d.high; else if(S.high==null||price>S.high) S.high=price;
+  if(d.low!=null)  S.low=d.low;  else if(S.low==null||price<S.low)   S.low=price;
+
+  // KEY FIX: set lap on very first price received
+  if(S.lap===null) S.lap=price;
+
   const ts=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  document.getElementById('pv').textContent=fmt(price);
+  const pvEl=document.getElementById('pv');
+
+  // Flash on change
+  if(prev!==null && price!==prev){
+    pvEl.classList.remove('flash-up','flash-down');
+    void pvEl.offsetWidth;
+    pvEl.classList.add(price>prev?'flash-up':'flash-down');
+    setTimeout(()=>pvEl.classList.remove('flash-up','flash-down'),600);
+  }
+
+  pvEl.textContent=fmt(price);
   document.getElementById('so').textContent=fmt(S.open);
   document.getElementById('sh').textContent=fmt(S.high);
   document.getElementById('slo').textContent=fmt(S.low);
-  document.getElementById('pm').textContent='Updated '+ts+' · Yahoo Finance · auto-refreshes in 15s';
+  document.getElementById('pm').textContent='Updated '+ts+' · Yahoo Finance · every '+INTERVAL+'s';
+
   const el=document.getElementById('pr');
   if(d.ch!=null){
     const s=d.ch>=0?'+':'';const c=d.ch>0?'cu':d.ch<0?'cd':'cn';const a=d.ch>0?'▲':'▼';
@@ -189,15 +246,62 @@ function updatePrice(d){
   }else if(prev!=null){
     const diff=price-prev;const p=((diff/prev)*100).toFixed(2);const s=diff>=0?'+':'';const c=diff>0?'cu':diff<0?'cd':'cn';const a=diff>0?'▲':'▼';
     el.innerHTML='<span class="ct '+c+'">'+a+' '+s+diff.toFixed(2)+' ('+s+p+'%)</span>';
-  }else{el.innerHTML='<span class="ct cn">First data point — alerts now active</span>';}
+  }else{
+    el.innerHTML='<span class="ct cn">First data point — alerts now active</span>';
+  }
+
   S.history.unshift({price,ts,diff:prev!=null?price-prev:0});
   if(S.history.length>20)S.history.pop();
-  renderHistory();checkAlerts(price);checkAutoAlert(price);
+  renderHistory();
+  checkAlerts(price);
+  checkAutoAlert(price);
 }
+
+// ── AUTO MOVEMENT ALERT — FIXED ──────────────────────────────────
+// Fires every time price moves MOVE_THRESHOLD from the last alert point
+// Resets lap to current price after each trigger so it keeps firing
+function checkAutoAlert(price){
+  if(!document.getElementById('aa').checked) return;
+  if(S.lap===null){ S.lap=price; return; }
+
+  const diff = price - S.lap; // signed diff
+  const absDiff = Math.abs(diff);
+
+  if(absDiff >= MOVE_THRESHOLD){
+    const dir = diff > 0 ? 'UP ▲' : 'DOWN ▼';
+    const m = 'Gold moved '+dir+' $'+absDiff.toFixed(2)+' — now '+fmt(price)+' (was '+fmt(S.lap)+')';
+    sn('⚡ $'+MOVE_THRESHOLD+' MOVE: '+m, diff>0?'u':'d');
+    pn('Gold $'+MOVE_THRESHOLD+' Move', m);
+    // Reset lap to current price so next $25 move triggers again
+    S.lap = price;
+  }
+
+  // Update the sub label to show distance to next trigger
+  const remaining = MOVE_THRESHOLD - absDiff;
+  if(remaining > 0){
+    document.getElementById('moveSub').textContent=
+      'Alert every $'+MOVE_THRESHOLD+' move · $'+remaining.toFixed(2)+' to next trigger';
+  }
+}
+
+// Countdown
+setInterval(()=>{
+  if(S.price){
+    countdown--;
+    if(countdown<=0) countdown=INTERVAL;
+    document.getElementById('cd').textContent='Next refresh in '+countdown+'s';
+  }
+},1000);
+
+// ── NOTIFICATIONS ────────────────────────────────────────────────
 function initNotifUI(){
-  if(!isStandalone){document.getElementById('installCard').style.display='block';document.getElementById('nc').style.display='none';return}
+  if(!isStandalone){
+    document.getElementById('installCard').style.display='block';
+    document.getElementById('nc').style.display='none';
+    return;
+  }
   if(!('Notification'in window)){document.getElementById('nc').style.display='none';return}
-  if(Notification.permission==='granted')setNotifDone();
+  if(Notification.permission==='granted') setNotifDone();
 }
 function setNotifDone(){
   document.getElementById('nc').className='notif-card done';
@@ -214,6 +318,8 @@ async function askNotif(){
   if(r==='granted'){setNotifDone();sn('Notifications enabled! Alerts will fire automatically.','i');}
   else sn('Blocked. Go to iPhone Settings → Gold Tracker → Notifications → Allow.','e');
 }
+
+// ── PRICE ALERTS ─────────────────────────────────────────────────
 function addAlert(){
   const p=parseFloat(document.getElementById('ap').value);
   const t=document.getElementById('at').value;
@@ -224,32 +330,43 @@ function addAlert(){
 }
 function removeAlert(id){S.alerts=S.alerts.filter(a=>a.id!==id);sa();renderAlerts()}
 function tl(t){return{above:'rises above',below:'falls below',exact:'hits ~'}[t]||t}
+
 function renderAlerts(){
   const el=document.getElementById('al');
   if(!S.alerts.length){el.innerHTML='<div class="em">No alerts set yet</div>';return}
-  el.innerHTML=S.alerts.map(a=>'<div class="ai'+(a.triggered?' at2':'')+'"><span class="bx '+(a.type==='above'?'ba':a.type==='below'?'bb':'be')+'">'+a.type+'</span><span class="ap2">'+fmt(a.price)+'</span><span style="font-size:11px;color:var(--muted)">'+(a.triggered?'✓ triggered':tl(a.type))+'</span><button class="xb" onclick="removeAlert('+a.id+')">×</button></div>').join('');
+  el.innerHTML=S.alerts.map(a=>
+    '<div class="ai'+(a.triggered?' at2':'')+'">'+
+    '<span class="bx '+(a.type==='above'?'ba':a.type==='below'?'bb':'be')+'">'+a.type+'</span>'+
+    '<span class="ap2">'+fmt(a.price)+'</span>'+
+    '<span style="font-size:11px;color:var(--muted)">'+(a.triggered?'✓ triggered':tl(a.type))+'</span>'+
+    '<button class="xb" onclick="removeAlert('+a.id+')">×</button>'+
+    '</div>'
+  ).join('');
 }
+
 function renderHistory(){
   const el=document.getElementById('hl');
   if(!S.history.length){el.innerHTML='<div class="em">No history yet</div>';return}
-  el.innerHTML=S.history.map(h=>{const s=h.diff>=0?'+':'';const c=h.diff>0.01?'cup':h.diff<-0.01?'cdo':'cmu';return'<div class="hi"><span class="htm">'+h.ts+'</span><span class="htp">'+fmt(h.price)+'</span><span class="htd '+c+'">'+s+h.diff.toFixed(2)+'</span></div>'}).join('');
+  el.innerHTML=S.history.map(h=>{
+    const s=h.diff>=0?'+':'';const c=h.diff>0.01?'cup':h.diff<-0.01?'cdo':'cmu';
+    return'<div class="hi"><span class="htm">'+h.ts+'</span><span class="htp">'+fmt(h.price)+'</span><span class="htd '+c+'">'+s+h.diff.toFixed(2)+'</span></div>';
+  }).join('');
 }
+
 function checkAlerts(price){
   if(!price)return;let fired=false;
-  S.alerts.forEach(a=>{if(a.triggered)return;let h=false;
+  S.alerts.forEach(a=>{
+    if(a.triggered)return;let h=false;
     if(a.type==='above'&&price>=a.price)h=true;
     if(a.type==='below'&&price<=a.price)h=true;
     if(a.type==='exact'&&Math.abs(price-a.price)<=1)h=true;
-    if(h){a.triggered=true;fired=true;const m='Gold '+tl(a.type)+' '+fmt(a.price)+' — now '+fmt(price);sn('🔔 ALERT: '+m,'i');pn('Gold Alert',m);}
+    if(h){a.triggered=true;fired=true;
+      const m='Gold '+tl(a.type)+' '+fmt(a.price)+' — now '+fmt(price);
+      sn('🔔 ALERT: '+m,'i');pn('Gold Alert',m);}
   });
   if(fired){sa();renderAlerts()}
 }
-function checkAutoAlert(price){
-  if(!document.getElementById('aa').checked||!price)return;
-  if(S.lap==null){S.lap=price;return}
-  const diff=Math.abs(price-S.lap);
-  if(diff>=50){const dir=price>S.lap?'UP':'DOWN';const m='Gold moved '+dir+' $'+diff.toFixed(2)+' — now '+fmt(price);sn('⚡ $50 MOVE: '+m,price>S.lap?'u':'d');pn('Gold $50 Move',m);S.lap=price;}
-}
+
 function pn(title,body){
   if(Notification.permission!=='granted')return;
   try{
@@ -258,6 +375,7 @@ function pn(title,body){
     }else{new Notification(title,{body});}
   }catch(e){}
 }
+
 let nt;
 function sn(msg,type){
   const el=document.getElementById('nb');
@@ -265,9 +383,10 @@ function sn(msg,type){
   el.style.display='block';el.textContent=msg;
   clearTimeout(nt);nt=setTimeout(()=>{el.style.display='none'},9000);
 }
+
 renderAlerts();initNotifUI();
 fetchPrice();
-setInterval(fetchPrice,15000);
+setInterval(fetchPrice, INTERVAL*1000);
 </script>
 </body>
 </html>
