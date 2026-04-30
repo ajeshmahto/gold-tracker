@@ -181,7 +181,7 @@ function updatePrice(d){
   document.getElementById('so').textContent=fmt(S.open);
   document.getElementById('sh').textContent=fmt(S.high);
   document.getElementById('slo').textContent=fmt(S.low);
-  document.getElementById('pm').textContent='Updated '+ts+' · Yahoo Finance · auto-refreshes in 60s';
+  document.getElementById('pm').textContent='Updated '+ts+' · Yahoo Finance · auto-refreshes in 15s';
   const el=document.getElementById('pr');
   if(d.ch!=null){
     const s=d.ch>=0?'+':'';const c=d.ch>0?'cu':d.ch<0?'cd':'cn';const a=d.ch>0?'▲':'▼';
