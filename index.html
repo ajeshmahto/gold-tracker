@@ -90,41 +90,38 @@ input:checked+.sr::before{transform:translateX(18px)}
 <div class="header">
   <div class="hl">
     <div class="gi">&#10022;</div>
-    <div><div class="ht">Gold Tracker</div><div class="hs">XAU / USD &middot; Auto Live Price</div></div>
+    <div><div class="ht">Gold Tracker</div><div class="hs">XAU / USD &middot; Live Spot Price</div></div>
   </div>
-  <div class="lp"><span class="ld" id="liveDot"></span><span id="liveLabel">Connecting</span></div>
+  <div class="lp"><span class="ld" id="dot"></span><span id="lbl">Connecting</span></div>
 </div>
 
 <div id="nb"></div>
 
 <div class="pad">
-
-  <!-- Price card - auto updated -->
   <div class="price-card">
     <div class="price-label">Spot Price &mdash; USD per troy oz</div>
     <div class="price-value" id="pv">&mdash;</div>
     <div class="price-change" id="pr"><span class="ct cn">Fetching live price&hellip;</span></div>
-    <div class="price-meta" id="pm">Auto-updates every 60 seconds</div>
+    <div class="price-meta" id="pm">Auto-updates every 60 seconds &middot; no key required</div>
   </div>
 
   <div class="sg">
+    <div class="sc"><div class="sl">Open</div><div class="sv" id="so">&mdash;</div></div>
     <div class="sc"><div class="sl">High</div><div class="sv" id="sh">&mdash;</div></div>
     <div class="sc"><div class="sl">Low</div><div class="sv" id="slo">&mdash;</div></div>
-    <div class="sc"><div class="sl">Prev Close</div><div class="sv" id="spc">&mdash;</div></div>
   </div>
 
   <button class="rb" id="rb" onclick="fetchPrice()">&#8635; Refresh Now</button>
 
-  <!-- Notification card -->
   <div id="installCard" class="install-card">
     <b>&#128242; Open from Home Screen for notifications</b><br>
-    Tap Share &#x2191; &rarr; &ldquo;Add to Home Screen&rdquo; &rarr; open the icon
+    Tap Share &#x2191; &rarr; &ldquo;Add to Home Screen&rdquo; &rarr; open from that icon
   </div>
 
-  <div class="notif-card" id="notifCard">
-    <div class="notif-title" id="notifTitle">&#128276; Enable Price Alerts</div>
-    <div class="notif-sub" id="notifSub">Tap to get notified when gold hits your target or moves $50</div>
-    <button class="notif-btn" id="notifBtn" onclick="askNotif()">Enable Notifications</button>
+  <div class="notif-card" id="nc">
+    <div class="notif-title" id="nt">&#128276; Enable Price Alerts</div>
+    <div class="notif-sub" id="ns">Tap to get push notifications when gold hits your target or moves $50</div>
+    <button class="notif-btn" id="nb2" onclick="askNotif()">Enable Notifications</button>
   </div>
 
   <div class="st">Set a price alert</div>
@@ -148,63 +145,76 @@ input:checked+.sr::before{transform:translateX(18px)}
 
   <div class="st">Price history</div>
   <div class="hl2" id="hl"><div class="em">Waiting for first fetch&hellip;</div></div>
-
 </div>
 
 <script>
-if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('sw.js').catch(e=>console.log('SW:',e));
-}
+if('serviceWorker'in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
 
-const S={price:null,high:null,low:null,prevClose:null,alerts:la(),history:[],lap:null,loading:false};
-const isStandalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+const S={price:null,open:null,high:null,low:null,alerts:la(),history:[],lap:null,loading:false};
+const isStandalone=window.matchMedia('(display-mode: standalone)').matches||navigator.standalone;
 
 function la(){try{return JSON.parse(localStorage.getItem('gal')||'[]')}catch(e){return[]}}
 function sa(){try{localStorage.setItem('gal',JSON.stringify(S.alerts))}catch(e){}}
 function fmt(n){return n==null?'--':'$'+Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
-function fmtShort(n){return n==null?'--':'$'+Number(n).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0})}
 
-// ── AUTO PRICE FETCH via Anthropic API + web search ───────────────
+// ── FETCH REAL PRICE — no API key needed ─────────────────────────
+// gold-api.com is completely free with no auth and CORS enabled
+// Falls back to corsproxy if direct call fails (file:// origin)
+const ENDPOINTS = [
+  {
+    url: 'https://gold-api.com/price/XAU',
+    headers: {},
+    parse: d => d&&d.price ? {price:+d.price, open:d.open_price?+d.open_price:null, high:d.high_price?+d.high_price:null, low:d.low_price?+d.low_price:null, ch:d.ch!=null?+d.ch:null, chp:d.chp!=null?+d.chp:null, src:'gold-api.com'} : null
+  },
+  {
+    url: 'https://corsproxy.io/?url=https://gold-api.com/price/XAU',
+    headers: {},
+    parse: d => d&&d.price ? {price:+d.price, open:d.open_price?+d.open_price:null, high:d.high_price?+d.high_price:null, low:d.low_price?+d.low_price:null, ch:d.ch!=null?+d.ch:null, chp:d.chp!=null?+d.chp:null, src:'gold-api.com (proxy)'} : null
+  },
+  {
+    url: 'https://corsproxy.io/?url=https://api.metals.live/v1/spot/gold',
+    headers: {},
+    parse: d => Array.isArray(d)&&d[0]&&d[0].price ? {price:+d[0].price, open:null, high:null, low:null, ch:null, chp:null, src:'metals.live (proxy)'} : null
+  }
+];
+
+let lastGoodEndpoint = null;
+
 async function fetchPrice(){
   if(S.loading)return;
   S.loading=true;
   const btn=document.getElementById('rb');
   btn.innerHTML='<span class="spin">&#8635;</span> Fetching&hellip;';
   btn.disabled=true;
-  document.getElementById('liveLabel').textContent='Fetching';
 
-  try{
-    const resp = await fetch('https://api.anthropic.com/v1/messages',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        model:'claude-sonnet-4-20250514',
-        max_tokens:400,
-        tools:[{type:'web_search_20250305',name:'web_search'}],
-        system:'You are a gold price data assistant. Use web_search to find the CURRENT live XAU/USD spot gold price right now. Return ONLY a raw JSON object with no markdown, no explanation, no backticks. Format exactly: {"price":4546.50,"high":4610.00,"low":4530.00,"prev_close":4597.00,"change":−50.50,"change_pct":−1.10,"source":"investing.com"}. All values must be real numbers from your search. Use null for any field you cannot find.',
-        messages:[{role:'user',content:'Search for the current live XAU/USD gold spot price right now today and return only the JSON.'}]
-      })
-    });
+  let result=null;
 
-    const data = await resp.json();
-    const text = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('');
-    const match = text.match(/{[sS]*?}/);
-    if(!match) throw new Error('No JSON found');
-    const d = JSON.parse(match[0]);
-    if(!d.price||isNaN(d.price)) throw new Error('Invalid price');
+  // Try last working endpoint first for speed
+  if(lastGoodEndpoint){
+    try{
+      const r=await fetch(lastGoodEndpoint.url,{headers:lastGoodEndpoint.headers,cache:'no-store'});
+      if(r.ok){ const d=await r.json(); result=lastGoodEndpoint.parse(d); }
+    }catch(e){}
+  }
 
-    updatePrice(d);
-    document.getElementById('liveLabel').textContent='Live';
-    document.getElementById('liveDot').className='ld';
-
-  }catch(err){
-    console.error('Fetch error:',err);
-    document.getElementById('liveLabel').textContent='Error';
-    document.getElementById('liveDot').className='ld err';
-    document.getElementById('pm').textContent='Could not fetch price. Retrying in 60s…';
-    if(S.price){
-      document.getElementById('pr').innerHTML='<span class="ct cn">Using last known price</span>';
+  // Try all endpoints in order
+  if(!result){
+    for(const ep of ENDPOINTS){
+      try{
+        const r=await fetch(ep.url,{headers:ep.headers,cache:'no-store'});
+        if(r.ok){const d=await r.json();result=ep.parse(d);if(result){lastGoodEndpoint=ep;break;}}
+      }catch(e){}
     }
+  }
+
+  if(result){
+    updatePrice(result);
+    document.getElementById('dot').className='ld';
+    document.getElementById('lbl').textContent='Live';
+  } else {
+    document.getElementById('dot').className='ld err';
+    document.getElementById('lbl').textContent='Offline';
+    document.getElementById('pm').textContent='Could not reach price feed. Check internet. Retrying in 60s…';
   }
 
   btn.innerHTML='&#8635; Refresh Now';
@@ -213,30 +223,29 @@ async function fetchPrice(){
 }
 
 function updatePrice(d){
-  const price=parseFloat(d.price), prev=S.price;
+  const price=d.price, prev=S.price;
   S.price=price;
-  if(d.high)  S.high=parseFloat(d.high);
-  if(d.low)   S.low=parseFloat(d.low);
-  if(d.prev_close) S.prevClose=parseFloat(d.prev_close);
-  if(S.lap==null) S.lap=price;
+  if(d.open!=null) S.open=d.open; else if(S.open==null) S.open=price;
+  if(d.high!=null) S.high=d.high; else if(S.high==null||price>S.high) S.high=price;
+  if(d.low!=null)  S.low=d.low;  else if(S.low==null||price<S.low)   S.low=price;
+  if(S.lap==null)  S.lap=price;
 
   const ts=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
   document.getElementById('pv').textContent=fmt(price);
+  document.getElementById('so').textContent=fmt(S.open);
   document.getElementById('sh').textContent=fmt(S.high);
   document.getElementById('slo').textContent=fmt(S.low);
-  document.getElementById('spc').textContent=fmt(S.prevClose);
-  document.getElementById('pm').textContent='Updated '+ts+' · '+(d.source||'web search')+' · auto-refreshes in 60s';
+  document.getElementById('pm').textContent='Updated '+ts+' · '+d.src+' · refreshes in 60s';
 
   const el=document.getElementById('pr');
-  if(d.change!=null&&d.change_pct!=null){
-    const ch=parseFloat(d.change),chp=parseFloat(d.change_pct);
-    const s=ch>=0?'+':'';const c=ch>0?'cu':ch<0?'cd':'cn';const a=ch>0?'▲':'▼';
-    el.innerHTML='<span class="ct '+c+'">'+a+' '+s+ch.toFixed(2)+' ('+s+chp.toFixed(2)+'%)</span><span style="font-size:11px;color:var(--muted)">vs prev close</span>';
+  if(d.ch!=null){
+    const s=d.ch>=0?'+':'';const c=d.ch>0?'cu':d.ch<0?'cd':'cn';const a=d.ch>0?'▲':'▼';
+    el.innerHTML='<span class="ct '+c+'">'+a+' '+s+d.ch.toFixed(2)+' ('+s+(d.chp||0).toFixed(2)+'%)</span><span style="font-size:11px;color:var(--muted)">vs prev close</span>';
   } else if(prev!=null){
     const diff=price-prev;const p=((diff/prev)*100).toFixed(2);const s=diff>=0?'+':'';const c=diff>0?'cu':diff<0?'cd':'cn';const a=diff>0?'▲':'▼';
     el.innerHTML='<span class="ct '+c+'">'+a+' '+s+diff.toFixed(2)+' ('+s+p+'%)</span>';
   } else {
-    el.innerHTML='<span class="ct cn">First data point</span>';
+    el.innerHTML='<span class="ct cn">First data point — alerts now active</span>';
   }
 
   S.history.unshift({price,ts,diff:prev!=null?price-prev:0});
@@ -246,37 +255,28 @@ function updatePrice(d){
   checkAutoAlert(price);
 }
 
-// ── NOTIFICATIONS ─────────────────────────────────────────────────
+// ── NOTIFICATIONS ────────────────────────────────────────────────
 function initNotifUI(){
-  const card=document.getElementById('notifCard');
-  const btn=document.getElementById('notifBtn');
-  const title=document.getElementById('notifTitle');
-  const sub=document.getElementById('notifSub');
-  if(!isStandalone){document.getElementById('installCard').style.display='block';card.style.display='none';return}
-  if(!('Notification'in window)){card.style.display='none';return}
-  if(Notification.permission==='granted'){
-    card.className='notif-card done';title.className='notif-title done';
-    title.textContent='✓ Notifications Enabled';
-    sub.textContent='You will receive automatic price alerts';
-    btn.className='notif-btn done';btn.textContent='Active ✓';btn.disabled=true;
-  }
+  if(!isStandalone){document.getElementById('installCard').style.display='block';document.getElementById('nc').style.display='none';return}
+  if(!('Notification'in window)){document.getElementById('nc').style.display='none';return}
+  if(Notification.permission==='granted'){setNotifDone()}
+}
+
+function setNotifDone(){
+  document.getElementById('nc').className='notif-card done';
+  document.getElementById('nt').className='notif-title done';
+  document.getElementById('nt').textContent='✓ Notifications Enabled';
+  document.getElementById('ns').textContent='You will receive automatic gold price alerts';
+  document.getElementById('nb2').className='notif-btn done';
+  document.getElementById('nb2').textContent='Active ✓';
+  document.getElementById('nb2').disabled=true;
 }
 
 async function askNotif(){
-  if(!isStandalone){sn('Open from home screen icon, not Safari browser.','e');return}
-  const result=await Notification.requestPermission();
-  if(result==='granted'){
-    document.getElementById('notifCard').className='notif-card done';
-    document.getElementById('notifTitle').className='notif-title done';
-    document.getElementById('notifTitle').textContent='✓ Notifications Enabled!';
-    document.getElementById('notifSub').textContent='You will receive automatic gold price alerts';
-    document.getElementById('notifBtn').className='notif-btn done';
-    document.getElementById('notifBtn').textContent='Active ✓';
-    document.getElementById('notifBtn').disabled=true;
-    sn('Notifications enabled! Alerts will fire automatically.','i');
-  } else {
-    sn('Blocked. Go to iPhone Settings → Gold Tracker → Notifications → Allow.','e');
-  }
+  if(!isStandalone){sn('Please open from home screen icon, not Safari.','e');return}
+  const r=await Notification.requestPermission();
+  if(r==='granted'){setNotifDone();sn('Notifications enabled! Alerts will fire automatically.','i');}
+  else{sn('Blocked. Go to iPhone Settings → Gold Tracker → Notifications → Allow.','e');}
 }
 
 // ── ALERTS ───────────────────────────────────────────────────────
@@ -300,10 +300,7 @@ function renderAlerts(){
 function renderHistory(){
   const el=document.getElementById('hl');
   if(!S.history.length){el.innerHTML='<div class="em">No history yet</div>';return}
-  el.innerHTML=S.history.map(h=>{
-    const s=h.diff>=0?'+':'';const c=h.diff>0.01?'cup':h.diff<-0.01?'cdo':'cmu';
-    return'<div class="hi"><span class="htm">'+h.ts+'</span><span class="htp">'+fmt(h.price)+'</span><span class="htd '+c+'">'+s+h.diff.toFixed(2)+'</span></div>';
-  }).join('');
+  el.innerHTML=S.history.map(h=>{const s=h.diff>=0?'+':'';const c=h.diff>0.01?'cup':h.diff<-0.01?'cdo':'cmu';return'<div class="hi"><span class="htm">'+h.ts+'</span><span class="htp">'+fmt(h.price)+'</span><span class="htd '+c+'">'+s+h.diff.toFixed(2)+'</span></div>'}).join('');
 }
 
 function checkAlerts(price){
@@ -312,7 +309,7 @@ function checkAlerts(price){
     if(a.type==='above'&&price>=a.price)h=true;
     if(a.type==='below'&&price<=a.price)h=true;
     if(a.type==='exact'&&Math.abs(price-a.price)<=1)h=true;
-    if(h){a.triggered=true;fired=true;const m='Gold '+tl(a.type)+' '+fmt(a.price)+' — now '+fmt(price);sn('🔔 ALERT: '+m,'i');pn('Gold Price Alert',m);}
+    if(h){a.triggered=true;fired=true;const m='Gold '+tl(a.type)+' '+fmt(a.price)+' — now '+fmt(price);sn('🔔 ALERT: '+m,'i');pn('Gold Alert',m);}
   });
   if(fired){sa();renderAlerts()}
 }
@@ -329,8 +326,8 @@ function pn(title,body){
   try{
     if(navigator.serviceWorker&&navigator.serviceWorker.controller){
       navigator.serviceWorker.ready.then(r=>r.showNotification(title,{body,icon:'icon.png'}));
-    } else { new Notification(title,{body}); }
-  }catch(e){console.log(e)}
+    }else{new Notification(title,{body});}
+  }catch(e){}
 }
 
 let nt;
@@ -341,10 +338,9 @@ function sn(msg,type){
   clearTimeout(nt);nt=setTimeout(()=>{el.style.display='none'},9000);
 }
 
-renderAlerts();
-initNotifUI();
+renderAlerts();initNotifUI();
 fetchPrice();
-setInterval(fetchPrice, 60000);
+setInterval(fetchPrice,60000);
 </script>
 </body>
 </html>
